@@ -3,6 +3,8 @@ import pandas
 import sqlite3 as sqlite
 import urllib.request
 from json import loads
+from pubobjects import publicacion
+
 
 def get_doi_orcid(orcidurl):
     req = urllib.request.Request(orcidurl)
@@ -21,7 +23,7 @@ def get_doi_orcid(orcidurl):
                             for id in summary['external-ids']['external-id']:
                                 if (id.get('external-id-type')) != None:
                                     if id.get('external-id-type') == 'doi':
-                                        url=id.get('external-id-value')
+                                        url = id.get('external-id-value')
                                         if "doi.org" in url:
                                             url = url.split(".org/")[1]
                                         urldoi = 'http://dx.doi.org/' + url
@@ -29,62 +31,70 @@ def get_doi_orcid(orcidurl):
                                             listadoi.append(urldoi)
     return listadoi
 
-def update_orcid(filename):
+
+def update_orcid(filename,vconn):
     academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
-    academicos.replace(u'\xa0',u'', regex=True, inplace=True)
-    academicos['email']=academicos['email'].str.lower()
+    academicos.replace(u'\xa0', u'', regex=True, inplace=True)
+    academicos['email'] = academicos['email'].str.lower()
     academicos.dropna(how='all')
     filtered_academicos = academicos[academicos['Orcid'].notnull()]
     df2 = filtered_academicos[['email', 'Orcid']].copy()
     listapub = []
-    for index,row in df2.iterrows():
-        print('Actualizando doi publicaciones via Orcid de: '+row["email"])
+    listamaestro=[]
+    for index, row in df2.iterrows():
+        print('Actualizando doi publicaciones via Orcid de: ' + row["email"])
         listadoi = get_doi_orcid(row["Orcid"])
-        print(str(len(listadoi))+' publicaciones')
+        print(str(len(listadoi)) + ' publicaciones')
         for doi in listadoi:
-            listapub.append([row["email"],doi,''])
+            listapub.append([row["email"], doi])
+            listamaestro.append([doi,''])
 
-    publicaciones=pandas.DataFrame(listapub,columns=['email','doi','json'])
+    publicaciones = pandas.DataFrame(listapub, columns=['email', 'doi'])
+    maestro = pandas.DataFrame(listamaestro, columns=['doi','json'])
 
     with pandas.ExcelWriter(filename, mode='a', if_sheet_exists='replace') as writer:
-        publicaciones.to_excel(writer, sheet_name='publicaciones',index=False)
+        publicaciones.to_excel(writer, sheet_name='publicaciones', index=False)
 
+    maestro.to_sql('maestro_doi', vconn, if_exists='replace', index=False)
 
-def excel_to_db(filename,vconn):
-    update_orcid(filename)
+def excel_to_db(filename, vconn):
+    update_orcid(filename,vconn)
     print('Generando base de datos desde excel')
     academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
-    academicos.replace(u'\xa0',u'', regex=True, inplace=True)
-    academicos['email']=academicos['email'].str.lower()
+    academicos.replace(u'\xa0', u'', regex=True, inplace=True)
+    academicos['email'] = academicos['email'].str.lower()
     academicos.dropna(how='all')
-    academicos.to_sql('base_acad',vconn, if_exists='replace', index=False)
+    academicos.to_sql('base_acad', vconn, if_exists='replace', index=False)
 
     tesis = pandas.read_excel(filename, sheet_name='tesis_postgrado')
-    tesis.replace(u'\xa0',u'', regex=True, inplace=True)
+    tesis.replace(u'\xa0', u'', regex=True, inplace=True)
     tesis.dropna(how='all')
-    tesis['email']=tesis['email'].str.lower()
-    tesis.to_sql('tesis',vconn, if_exists='replace', index=False)
+    tesis['email'] = tesis['email'].str.lower()
+    tesis.to_sql('tesis', vconn, if_exists='replace', index=False)
 
     publicaciones = pandas.read_excel(filename, sheet_name='publicaciones')
-    publicaciones.replace(u'\xa0',u'', regex=True, inplace=True)
+    publicaciones.replace(u'\xa0', u'', regex=True, inplace=True)
     publicaciones.dropna(how='all')
-    publicaciones['email']=publicaciones['email'].str.lower()
-    publicaciones.to_sql('publicaciones',vconn, if_exists='replace', index=False)
+    publicaciones['email'] = publicaciones['email'].str.lower()
+    publicaciones.to_sql('publicaciones', vconn, if_exists='replace', index=False)
 
     proyectos = pandas.read_excel(filename, sheet_name='proyectos')
-    proyectos.replace(u'\xa0',u'', regex=True, inplace=True)
+    proyectos.replace(u'\xa0', u'', regex=True, inplace=True)
     proyectos.dropna(how='all')
-    proyectos['email']=proyectos['email'].str.lower()
-    proyectos.to_sql('proyectos',vconn, if_exists='replace', index=False)
+    proyectos['email'] = proyectos['email'].str.lower()
+    proyectos.to_sql('proyectos', vconn, if_exists='replace', index=False)
 
     consultoria = pandas.read_excel(filename, sheet_name='consultorias')
-    consultoria.replace(u'\xa0',u'', regex=True, inplace=True)
+    consultoria.replace(u'\xa0', u'', regex=True, inplace=True)
     consultoria.dropna(how='all')
-    consultoria['email']=consultoria['email'].str.lower()
-    consultoria.to_sql('consultoria',vconn, if_exists='replace', index=False)
-    print('Base de datos actualizada')
+    consultoria['email'] = consultoria['email'].str.lower()
+    consultoria.to_sql('consultoria', vconn, if_exists='replace', index=False)
+    print('Base de datos actualizada desde excel')
 
-def add_table_tesis(cell,vconn,id_prof,tipo_tesis):
+    print('Obteniendo datos de publicaciones')
+
+
+def add_table_tesis(cell, vconn, id_prof, tipo_tesis):
     def setuptable(table_v):
         table_v.style = 'TableGrid'
         table_v.cell(0, 0).text = 'Año'
@@ -94,11 +104,12 @@ def add_table_tesis(cell,vconn,id_prof,tipo_tesis):
         table_v.cell(0, 4).text = 'Institución'
 
     cell.add_paragraph('Como guía tesis')
-    table_t1=cell.add_table(rows=1, cols=5)
+    table_t1 = cell.add_table(rows=1, cols=5)
     setuptable(table_t1)
     cur = vconn.cursor()
     cur.execute(
-        "SELECT b.anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Guia' and b.email=?",[tipo_tesis,id_prof])
+        "SELECT b.anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Guia' and b.email=?",
+        [tipo_tesis, id_prof])
     rows = cur.fetchall()
     for row in rows:
         row_cells = table_t1.add_row().cells
@@ -109,10 +120,11 @@ def add_table_tesis(cell,vconn,id_prof,tipo_tesis):
         row_cells[4].text = row['institucion']
 
     cell.add_paragraph('Como co-guía tesis')
-    table_t2=cell.add_table(rows=1, cols=5)
+    table_t2 = cell.add_table(rows=1, cols=5)
     setuptable(table_t2)
     cur.execute(
-        "SELECT b.anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Co-Guia' and b.email=?",[tipo_tesis,id_prof])
+        "SELECT b.anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Co-Guia' and b.email=?",
+        [tipo_tesis, id_prof])
     rows = cur.fetchall()
     for row in rows:
         row_cells = table_t2.add_row().cells
@@ -122,6 +134,8 @@ def add_table_tesis(cell,vconn,id_prof,tipo_tesis):
         row_cells[3].text = row['programa']
         row_cells[4].text = row['institucion']
     cur.close()
+
+
 def add_table_proyectos(cell):
     def setuptable(table_v):
         table_v.style = 'TableGrid'
@@ -130,7 +144,8 @@ def add_table_proyectos(cell):
         table_v.cell(0, 2).text = 'Año de adjudicación'
         table_v.cell(0, 3).text = 'Periodo de ejecución'
         table_v.cell(0, 4).text = 'Rol'
-    table_t=cell.add_table(rows=1, cols=5)
+
+    table_t = cell.add_table(rows=1, cols=5)
     setuptable(table_t)
 
 
@@ -142,10 +157,12 @@ def add_table_consultorias(cell):
         table_v.cell(0, 2).text = 'Año de adjudicación'
         table_v.cell(0, 3).text = 'Periodo de ejecución'
         table_v.cell(0, 4).text = 'Objetivo'
+
     table_t = cell.add_table(rows=1, cols=5)
     setuptable(table_t)
 
-def add_table_publicaciones(cell,vconn,id_prof):
+
+def add_table_publicaciones(cell, vconn, id_prof):
     def setuptable(table_v):
         table_v.style = 'TableGrid'
         table_v.cell(0, 0).text = 'N°'
@@ -156,6 +173,7 @@ def add_table_publicaciones(cell,vconn,id_prof):
         table_v.cell(0, 5).text = 'Estado'
         table_v.cell(0, 6).text = 'ISSN'
         table_v.cell(0, 7).text = 'Factor de impacto'
+
     def setuptablelibro(table_v):
         table_v.style = 'TableGrid'
         table_v.cell(0, 0).text = 'N°'
@@ -186,14 +204,15 @@ def add_table_publicaciones(cell,vconn,id_prof):
         table_v.cell(0, 5).text = 'N° registro'
         table_v.cell(0, 6).text = 'Estado'
 
-
     cell.add_paragraph('Publicaciones indexadas')
     table_t_pub = cell.add_table(rows=1, cols=8)
     setuptable(table_t_pub)
     cur = vconn.cursor()
-    cur.execute("select p.email,m.autores,m.anno,m.titulo,ifnull(m.revista,'Revista')||'('||ifnull(m.ref_revista,'')||') ' ||m.doi as revista,m.isbn,m.factor from publicaciones p, master_doi m where p.doi=m.doi and p.email=?",[id_prof])
+    cur.execute(
+        "select p.email,m.autores,m.anno,m.titulo,ifnull(m.revista,'Revista')||'('||ifnull(m.ref_revista,'')||') ' ||m.doi as revista,m.isbn,m.factor from publicaciones p, master_doi m where p.doi=m.doi and p.email=?",
+        [id_prof])
     rows = cur.fetchall()
-    i=1
+    i = 1
     for row in rows:
         row_cells = table_t_pub.add_row().cells
         row_cells[0].text = str(i)
@@ -204,7 +223,7 @@ def add_table_publicaciones(cell,vconn,id_prof):
         row_cells[5].text = 'Publicada'
         row_cells[6].text = row['isbn']
         row_cells[7].text = row['factor']
-        i=i+1
+        i = i + 1
     cur.close()
 
     cell.add_paragraph('Libros y capítulos de libro ')
@@ -217,43 +236,44 @@ def add_table_publicaciones(cell,vconn,id_prof):
     table_t = cell.add_table(rows=1, cols=7)
     setuptablepatentes(table_t)
 
-def get_publicaciones(vconn,id_prof):
+
+def get_publicaciones(vconn, id_prof):
     def get_json(url, vconn):
         vurl = ''.join(url.splitlines())
-        cursor = vconn.execute('select json from doi where url=?', (vurl,))
+        cursor = vconn.execute('select p.json from master_doi p where doi=? and p.json is not null', (vurl))
         for fila in cursor:
             return fila[0]
 
     def push_json(url, vjson, vconn):
         vurl = ''.join(url.splitlines())
-        vconn.execute('insert into doi (url,json) values (?,?)', (vurl, vjson))
+        vconn.execute('update master_doi set json=? where doi=?', (vjson, vurl))
         vconn.commit()
 
-
     cur = vconn.cursor()
-    cur.execute("select p.email,p.doi from publicaciones p where p.email=?",[id_prof])
+    cur.execute("select p.email,p.doi from publicaciones p where p.email=?", [id_prof])
     rows = cur.fetchall()
     for row in rows:
-        url=row['doi']
+        url = row['doi']
         req = urllib.request.Request(url)
         req.add_header('Accept', 'application/json')
         try:
             print("Connecting!")
-            try:
-                json = None
-                json = loads(get_json(url,vconn).decode("utf-8"))
+            json = None
+            arreglo = get_json(url, vconn)
+            if arreglo is not None:
+                json = loads(arreglo.decode("utf-8"))
                 print("Response from db")
+            try:
+                with urllib.request.urlopen(req, timeout=15) as f:
+                    jsonbruto = f.read()
+                    json = loads(jsonbruto.decode("utf-8"))
+                print("Response from web")
+                push_json(url, jsonbruto, vconn)
+                print("Set into db")
             except Exception as e:
-                try:
-                    with urllib.request.urlopen(req, timeout=15) as f:
-                        jsonbruto=f.read()
-                        json = loads(jsonbruto.decode("utf-8"))
-                    print("Response from web")
-                    push_json(url,jsonbruto,vconn)
-                    print("Set into db")
-                except Exception as e:
-                    print('Error in web '+ str(e))
-                    raise(e)
+                print('Error in web ' + str(e))
+                raise (e)
+
             pub = publicacion(json["title"], url)
             pub.add_authors(json['author'])
             try:
@@ -269,61 +289,68 @@ def get_publicaciones(vconn,id_prof):
                 pub.anno = str(json['published']['date-parts'][0][0])
                 pub.journal = json["container-title"]
             except Exception as e:
-                print(str(e)+" - Error!")
+                print(str(e) + " - Error!")
             if pub:
-                issn, impact, Q = journal_issn_search(pub.issn,conn)
-                pub.issn=str(issn)
-                pub.impact=f'{impact:.3f} ({Q})'
-                pub.found=True
+                issn, impact, Q = journal_issn_search(pub.issn, conn)
+                pub.issn = str(issn)
+                pub.impact = f'{impact:.3f} ({Q})'
+                pub.found = True
             else:
                 print(pub.title, "No encontrado")
             print(pub.title)
         except Exception as e:
             print(str(e))
-def db_2_doc(filename,vconn):
+
+
+def db_2_doc(filename, vconn):
     print('Base actualizada')
     vconn.row_factory = sqlite.Row
     cur = vconn.cursor()
-    cur.execute("SELECT b.email,ifnull(b.linea_invest,'') as linea_invest,b.rut,b.nombre,b.tipo,b.profesion||';'||ifnull(b.inst_profesion,'UV')||';'||ifnull(b.pais_profesion,'Sin Info') as profesion, b.max_grado||';'||ifnull(b.institucion_grado,'')||';'||ifnull(round(b.ano_max_grado,0),'')||';'||ifnull(b.pais_grado,'') as grado FROM base_acad b where b.tipo ='Nucleo'")
+    cur.execute(
+        "SELECT b.email,ifnull(b.linea_invest,'') as linea_invest,b.rut,b.nombre,b.tipo,b.profesion||';'||ifnull(b.inst_profesion,'UV')||';'||ifnull(b.pais_profesion,'Sin Info') as profesion, b.max_grado||';'||ifnull(b.institucion_grado,'')||';'||ifnull(round(b.ano_max_grado,0),'')||';'||ifnull(b.pais_grado,'') as grado FROM base_acad b where b.tipo ='Nucleo'")
     rows = cur.fetchall()
     for row in rows:
-        print('Escribiendo archivo '+row['nombre'])
+        print('Escribiendo archivo ' + row['nombre'])
         document = Document()
         table = document.add_table(rows=12, cols=2)
         table.style = 'TableGrid'
         hdr_cells = table.rows[0].cells
-        table.cell(0,0).text = 'Nombre del académico'
-        table.cell(0,1).text = row['nombre']
-        table.cell(1,0).text = 'Carácter del vínculo (claustro/núcleo, colaborador o visitante'
-        table.cell(1,1).text = row['tipo']
-        table.cell(2,0).text = 'Título profesional,  institución, país'
-        table.cell(2,1).text = row['profesion']
-        table.cell(3,0).text = 'Grado académico máximo (especificar área disciplinar), institución, año de graduación y país '
-        table.cell(3,1).text = row['grado']
-        table.cell(4,0).text = 'Línea(s) de investigación'
-        table.cell(4,1).text = row['linea_invest']
+        table.cell(0, 0).text = 'Nombre del académico'
+        table.cell(0, 1).text = row['nombre']
+        table.cell(1, 0).text = 'Carácter del vínculo (claustro/núcleo, colaborador o visitante'
+        table.cell(1, 1).text = row['tipo']
+        table.cell(2, 0).text = 'Título profesional,  institución, país'
+        table.cell(2, 1).text = row['profesion']
+        table.cell(3,
+                   0).text = 'Grado académico máximo (especificar área disciplinar), institución, año de graduación y país '
+        table.cell(3, 1).text = row['grado']
+        table.cell(4, 0).text = 'Línea(s) de investigación'
+        table.cell(4, 1).text = row['linea_invest']
 
-        table.cell(5,0).text = 'Tesis de magíster  dirigidas en los últimos 10 años (finalizadas)'
-        add_table_tesis(table.cell(5,1),vconn,row['email'],'Magister')
+        table.cell(5, 0).text = 'Tesis de magíster  dirigidas en los últimos 10 años (finalizadas)'
+        add_table_tesis(table.cell(5, 1), vconn, row['email'], 'Magister')
 
-        table.cell(6,0).text = 'Tesis de doctorado dirigidas en los últimos 10 años (finalizadas)'
-        add_table_tesis(table.cell(6, 1),vconn,row['email'],'Doctorado')
+        table.cell(6, 0).text = 'Tesis de doctorado dirigidas en los últimos 10 años (finalizadas)'
+        add_table_tesis(table.cell(6, 1), vconn, row['email'], 'Doctorado')
 
-        table.cell(7,0).text = 'Listado de publicaciones'
-        add_table_publicaciones(table.cell(7,1),vconn,row['email'])
+        table.cell(7, 0).text = 'Listado de publicaciones'
+        get_publicaciones(vconn, row['email'])
+        add_table_publicaciones(table.cell(7, 1), vconn, row['email'])
 
-        table.cell(8,0).text = 'Listado de proyectos de investigación  en los últimos 10 años'
-        add_table_proyectos(table.cell(8,1))
+        table.cell(8, 0).text = 'Listado de proyectos de investigación  en los últimos 10 años'
+        add_table_proyectos(table.cell(8, 1))
 
-        table.cell(9,0).text = 'Listado de proyectos de intervención, innovación y/o desarrollo tecnológico'
-        add_table_proyectos(table.cell(9,1))
+        table.cell(9, 0).text = 'Listado de proyectos de intervención, innovación y/o desarrollo tecnológico'
+        add_table_proyectos(table.cell(9, 1))
 
-        table.cell(10,0).text = 'Listado de consultorías y/o  asistencias técnicas, en calidad de responsable, en los últimos 10 años'
-        add_table_consultorias(table.cell(10,1))
+        table.cell(10,
+                   0).text = 'Listado de consultorías y/o  asistencias técnicas, en calidad de responsable, en los últimos 10 años'
+        add_table_consultorias(table.cell(10, 1))
 
-        document.save('./output/'+row['rut']+'_'+row['nombre']+'.docx')
+        document.save('./output/' + row['rut'] + '_' + row['nombre'] + '.docx')
 
-base_file='Base_Academicos.xlsx'
+
+base_file = 'Base_Academicos.xlsx'
 conn = sqlite.connect('./bd_academic.sqlite')
 excel_to_db(base_file, conn)
-db_2_doc(base_file,conn)
+db_2_doc(base_file, conn)
