@@ -50,7 +50,7 @@ def update_orcid(filename):
         publicaciones.to_excel(writer, sheet_name='publicaciones',index=False)
 
 
-def excel_to_bd(filename,vconn):
+def excel_to_db(filename,vconn):
     update_orcid(filename)
     print('Generando base de datos desde excel')
     academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
@@ -217,8 +217,7 @@ def add_table_publicaciones(cell,vconn,id_prof):
     table_t = cell.add_table(rows=1, cols=7)
     setuptablepatentes(table_t)
 
-def add_data_db_header(filename,vconn):
-    excel_to_bd(filename,vconn)
+def db_2_doc(filename,vconn):
     print('Base actualizada')
     vconn.row_factory = sqlite.Row
     cur = vconn.cursor()
@@ -261,5 +260,7 @@ def add_data_db_header(filename,vconn):
 
         document.save('./output/'+row['rut']+'_'+row['nombre']+'.docx')
 
+base_file='Base_Academicos.xlsx'
 conn = sqlite.connect('./bd_academic.sqlite')
-add_data_db_header('Base_Academicos.xlsx',conn)
+excel_to_db(base_file, conn)
+db_2_doc(base_file,conn)
