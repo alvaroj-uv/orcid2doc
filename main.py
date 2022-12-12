@@ -42,9 +42,9 @@ def update_orcid(filename):
         listadoi = get_doi_orcid(row["Orcid"])
         print(str(len(listadoi))+' publicaciones')
         for doi in listadoi:
-            listapub.append([row["email"],doi])
+            listapub.append([row["email"],doi,''])
 
-    publicaciones=pandas.DataFrame(listapub,columns=['email','doi'])
+    publicaciones=pandas.DataFrame(listapub,columns=['email','doi','json'])
 
     with pandas.ExcelWriter(filename, mode='a', if_sheet_exists='replace') as writer:
         publicaciones.to_excel(writer, sheet_name='publicaciones',index=False)
@@ -217,6 +217,69 @@ def add_table_publicaciones(cell,vconn,id_prof):
     table_t = cell.add_table(rows=1, cols=7)
     setuptablepatentes(table_t)
 
+def get_publicaciones(vconn,id_prof):
+    def get_json(url, vconn):
+        vurl = ''.join(url.splitlines())
+        cursor = vconn.execute('select json from doi where url=?', (vurl,))
+        for fila in cursor:
+            return fila[0]
+
+    def push_json(url, vjson, vconn):
+        vurl = ''.join(url.splitlines())
+        vconn.execute('insert into doi (url,json) values (?,?)', (vurl, vjson))
+        vconn.commit()
+
+
+    cur = vconn.cursor()
+    cur.execute("select p.email,p.doi from publicaciones p where p.email=?",[id_prof])
+    rows = cur.fetchall()
+    for row in rows:
+        url=row['doi']
+        req = urllib.request.Request(url)
+        req.add_header('Accept', 'application/json')
+        try:
+            print("Connecting!")
+            try:
+                json = None
+                json = loads(get_json(url,vconn).decode("utf-8"))
+                print("Response from db")
+            except Exception as e:
+                try:
+                    with urllib.request.urlopen(req, timeout=15) as f:
+                        jsonbruto=f.read()
+                        json = loads(jsonbruto.decode("utf-8"))
+                    print("Response from web")
+                    push_json(url,jsonbruto,vconn)
+                    print("Set into db")
+                except Exception as e:
+                    print('Error in web '+ str(e))
+                    raise(e)
+            pub = publicacion(json["title"], url)
+            pub.add_authors(json['author'])
+            try:
+                vol = ""
+                if 'volume' in json.keys():
+                    vol = json["volume"]
+                if 'page' in json.keys():
+                    vol = vol + ':' + json["page"]
+                elif 'issue' in json.keys():
+                    vol = vol + '(' + json["issue"] + ')'
+                pub.vol = vol
+                pub.issn = json["ISSN"]
+                pub.anno = str(json['published']['date-parts'][0][0])
+                pub.journal = json["container-title"]
+            except Exception as e:
+                print(str(e)+" - Error!")
+            if pub:
+                issn, impact, Q = journal_issn_search(pub.issn,conn)
+                pub.issn=str(issn)
+                pub.impact=f'{impact:.3f} ({Q})'
+                pub.found=True
+            else:
+                print(pub.title, "No encontrado")
+            print(pub.title)
+        except Exception as e:
+            print(str(e))
 def db_2_doc(filename,vconn):
     print('Base actualizada')
     vconn.row_factory = sqlite.Row
