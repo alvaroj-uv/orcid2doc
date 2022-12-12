@@ -6,93 +6,71 @@ from json import loads
 from pubobjects import publicacion
 
 
-def get_doi_orcid(orcidurl):
-    req = urllib.request.Request(orcidurl)
-    req.add_header('Accept', 'application/json')
-    with urllib.request.urlopen(req, timeout=15) as f:
-        jsonbruto = f.read()
-        json = loads(jsonbruto.decode("utf-8"))
-        # print(json)
-        listadoi = []
-        if 'activities-summary' in json.keys():
-            activities = json['activities-summary']
-            for works in activities['works']['group']:
-                for summary in works['work-summary']:
-                    if 'external-ids' in summary.keys():
-                        for ids in summary['external-ids']:
-                            for id in summary['external-ids']['external-id']:
-                                if (id.get('external-id-type')) != None:
-                                    if id.get('external-id-type') == 'doi':
-                                        url = id.get('external-id-value')
-                                        if "doi.org" in url:
-                                            url = url.split(".org/")[1]
-                                        urldoi = 'http://dx.doi.org/' + url
-                                        if urldoi not in listadoi:
-                                            listadoi.append(urldoi)
-    return listadoi
-
-
-def update_orcid(filename,vconn):
-    academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
-    academicos.replace(u'\xa0', u'', regex=True, inplace=True)
-    academicos['email'] = academicos['email'].str.lower()
-    academicos.dropna(how='all')
-    filtered_academicos = academicos[academicos['Orcid'].notnull()]
-    df2 = filtered_academicos[['email', 'Orcid']].copy()
-    listapub = []
-    listamaestro=[]
-    for index, row in df2.iterrows():
-        print('Actualizando doi publicaciones via Orcid de: ' + row["email"])
-        listadoi = get_doi_orcid(row["Orcid"])
-        print(str(len(listadoi)) + ' publicaciones')
-        for doi in listadoi:
-            listapub.append([row["email"], doi])
-            listamaestro.append([doi,''])
-
-    publicaciones = pandas.DataFrame(listapub, columns=['email', 'doi'])
-    maestro = pandas.DataFrame(listamaestro, columns=['doi','json'])
-
-    with pandas.ExcelWriter(filename, mode='a', if_sheet_exists='replace') as writer:
-        publicaciones.to_excel(writer, sheet_name='publicaciones', index=False)
-
-    maestro.to_sql('maestro_doi', vconn, if_exists='replace', index=False)
-
 def excel_to_db(filename, vconn):
-    update_orcid(filename,vconn)
+    def update_orcid(filename):
+        def get_doi_orcid(orcidurl):
+            req = urllib.request.Request(orcidurl)
+            req.add_header('Accept', 'application/json')
+            with urllib.request.urlopen(req, timeout=15) as f:
+                jsonbruto = f.read()
+                json = loads(jsonbruto.decode("utf-8"))
+                # print(json)
+                listadoi = []
+                if 'activities-summary' in json.keys():
+                    activities = json['activities-summary']
+                    for works in activities['works']['group']:
+                        for summary in works['work-summary']:
+                            if 'external-ids' in summary.keys():
+                                for ids in summary['external-ids']:
+                                    for id in summary['external-ids']['external-id']:
+                                        if (id.get('external-id-type')) != None:
+                                            if id.get('external-id-type') == 'doi':
+                                                url = id.get('external-id-value')
+                                                if "doi.org" in url:
+                                                    url = url.split(".org/")[1]
+                                                urldoi = 'http://dx.doi.org/' + url
+                                                if urldoi not in listadoi:
+                                                    listadoi.append(urldoi)
+            return listadoi
+
+
+        academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
+        academicos.replace(u'\xa0', u'', regex=True, inplace=True)
+        academicos['email'] = academicos['email'].str.lower()
+        academicos.dropna(how='all')
+        filtered_academicos = academicos[academicos['Orcid'].notnull()]
+        df2 = filtered_academicos[['email', 'Orcid']].copy()
+        listapub = []
+        listamaestro = []
+        for index, row in df2.iterrows():
+            print('Actualizando doi publicaciones via Orcid de: ' + row["email"])
+            listadoi = get_doi_orcid(row["Orcid"])
+            print(str(len(listadoi)) + ' publicaciones')
+            for doi in listadoi:
+                listapub.append([row["email"], doi])
+
+        publicaciones = pandas.DataFrame(listapub, columns=['email', 'doi'])
+
+        with pandas.ExcelWriter(filename, mode='a', if_sheet_exists='replace') as writer:
+            publicaciones.to_excel(writer, sheet_name='publicaciones', index=False)
+
+    def to_sql(vfilename,vsheetname,vtable_name,vconn2):
+        df = pandas.read_excel(vfilename, sheet_name=vsheetname)
+        df.replace(u'\xa0', u'', regex=True, inplace=True)
+        df['email'] = df['email'].str.lower()
+        df.dropna(how='all')
+        df.to_sql(vtable_name, vconn2, if_exists='replace', index=False)
+
+
+    update_orcid(filename)
     print('Generando base de datos desde excel')
-    academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
-    academicos.replace(u'\xa0', u'', regex=True, inplace=True)
-    academicos['email'] = academicos['email'].str.lower()
-    academicos.dropna(how='all')
-    academicos.to_sql('base_acad', vconn, if_exists='replace', index=False)
-
-    tesis = pandas.read_excel(filename, sheet_name='tesis_postgrado')
-    tesis.replace(u'\xa0', u'', regex=True, inplace=True)
-    tesis.dropna(how='all')
-    tesis['email'] = tesis['email'].str.lower()
-    tesis.to_sql('tesis', vconn, if_exists='replace', index=False)
-
-    publicaciones = pandas.read_excel(filename, sheet_name='publicaciones')
-    publicaciones.replace(u'\xa0', u'', regex=True, inplace=True)
-    publicaciones.dropna(how='all')
-    publicaciones['email'] = publicaciones['email'].str.lower()
-    publicaciones.to_sql('publicaciones', vconn, if_exists='replace', index=False)
-
-    proyectos = pandas.read_excel(filename, sheet_name='proyectos')
-    proyectos.replace(u'\xa0', u'', regex=True, inplace=True)
-    proyectos.dropna(how='all')
-    proyectos['email'] = proyectos['email'].str.lower()
-    proyectos.to_sql('proyectos', vconn, if_exists='replace', index=False)
-
-    consultoria = pandas.read_excel(filename, sheet_name='consultorias')
-    consultoria.replace(u'\xa0', u'', regex=True, inplace=True)
-    consultoria.dropna(how='all')
-    consultoria['email'] = consultoria['email'].str.lower()
-    consultoria.to_sql('consultoria', vconn, if_exists='replace', index=False)
+    to_sql(filename,'Base_Acad','base_acad',vconn)
+    to_sql(filename, 'tesis_postgrado', 'tesis', vconn)
+    to_sql(filename, 'publicaciones', 'publicaciones', vconn)
+    to_sql(filename, 'proyectos', 'proyectos', vconn)
+    to_sql(filename, 'consultorias', 'consultorias', vconn)
     print('Base de datos actualizada desde excel')
-
     print('Obteniendo datos de publicaciones')
-
 
 def add_table_tesis(cell, vconn, id_prof, tipo_tesis):
     def setuptable(table_v):
@@ -152,57 +130,35 @@ def add_table_proyectos(cell):
 def add_table_consultorias(cell):
     def setuptable(table_v):
         table_v.style = 'TableGrid'
-        table_v.cell(0, 0).text = 'Título'
-        table_v.cell(0, 1).text = 'Institucion'
-        table_v.cell(0, 2).text = 'Año de adjudicación'
-        table_v.cell(0, 3).text = 'Periodo de ejecución'
-        table_v.cell(0, 4).text = 'Objetivo'
+        cabecera = ['Título','Institucion','Año de adjudicación','Periodo de ejecución','Objetivo']
+        for c in len(cabecera):
+            table_v.cell(0, c).text = cabecera[c]
 
     table_t = cell.add_table(rows=1, cols=5)
     setuptable(table_t)
 
-
 def add_table_publicaciones(cell, vconn, id_prof):
     def setuptable(table_v):
         table_v.style = 'TableGrid'
-        table_v.cell(0, 0).text = 'N°'
-        table_v.cell(0, 1).text = 'Autores'
-        table_v.cell(0, 2).text = 'Año'
-        table_v.cell(0, 3).text = 'Titulo del articulo'
-        table_v.cell(0, 4).text = 'Nombre revista'
-        table_v.cell(0, 5).text = 'Estado'
-        table_v.cell(0, 6).text = 'ISSN'
-        table_v.cell(0, 7).text = 'Factor de impacto'
-
+        cabecera = ['N°','Autores','Año','Titulo del articulo','Nombre revista','Estado','ISSN','Factor de impacto']
+        for c in len(cabecera):
+            table_v.cell(0, c).text = cabecera[c]
     def setuptablelibro(table_v):
         table_v.style = 'TableGrid'
-        table_v.cell(0, 0).text = 'N°'
-        table_v.cell(0, 1).text = 'Autores'
-        table_v.cell(0, 2).text = 'Año'
-        table_v.cell(0, 3).text = 'Titulo del capitulo/libro'
-        table_v.cell(0, 4).text = 'Lugar'
-        table_v.cell(0, 5).text = 'Editorial'
-
+        cabecera = ['N°','Autores','Año','Titulo del capitulo/libro','Lugar','Editorial']
+        for c in len(cabecera):
+            table_v.cell(0, c).text = cabecera[c]
     def setuptableotro(table_v):
         table_v.style = 'TableGrid'
-        table_v.cell(0, 0).text = 'N°'
-        table_v.cell(0, 1).text = 'Autores'
-        table_v.cell(0, 2).text = 'Año'
-        table_v.cell(0, 3).text = 'Titulo de publicación'
-        table_v.cell(0, 4).text = 'Lugar'
-        table_v.cell(0, 5).text = 'Editorial'
-        table_v.cell(0, 6).text = 'Estado'
-        table_v.cell(0, 7).text = 'Observaciones'
-
+        cabecera = ['N°','Autores','Año','Titulo de publicación','Lugar','Editorial','Estado','Observaciones']
+        for c in len(cabecera):
+            table_v.cell(0, c).text = cabecera[c]
     def setuptablepatentes(table_v):
         table_v.style = 'TableGrid'
-        table_v.cell(0, 0).text = 'N°'
-        table_v.cell(0, 1).text = 'Inventores'
-        table_v.cell(0, 2).text = 'Nombre Patente'
-        table_v.cell(0, 3).text = 'Fecha solicitud'
-        table_v.cell(0, 4).text = 'Fecha publicación'
-        table_v.cell(0, 5).text = 'N° registro'
-        table_v.cell(0, 6).text = 'Estado'
+        cabecera = ['N°','Inventores','Nombre Patente','Fecha solicitud','Fecha publicación','N° registro','Estado']
+        for c in len(cabecera):
+            table_v.cell(0, c).text = cabecera[c]
+
 
     cell.add_paragraph('Publicaciones indexadas')
     table_t_pub = cell.add_table(rows=1, cols=8)
@@ -351,6 +307,7 @@ def db_2_doc(filename, vconn):
 
 
 base_file = 'Base_Academicos.xlsx'
-conn = sqlite.connect('./bd_academic.sqlite')
+db_academics ='./bd_academic.sqlite'
+conn = sqlite.connect(db_academics)
 excel_to_db(base_file, conn)
 db_2_doc(base_file, conn)
