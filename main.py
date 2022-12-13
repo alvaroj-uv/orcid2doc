@@ -23,7 +23,7 @@ def excel_to_db(filename, vconn):
                             if 'external-ids' in summary.keys():
                                 for ids in summary['external-ids']:
                                     for id in summary['external-ids']['external-id']:
-                                        if (id.get('external-id-type')) != None:
+                                        if (id.get('external-id-type')) is not None:
                                             if id.get('external-id-type') == 'doi':
                                                 url = id.get('external-id-value')
                                                 if "doi.org" in url:
@@ -204,12 +204,11 @@ def get_publicaciones(vconn, id_prof):
         vurl = ''.join(url.splitlines())
         json_int = loads(vjson.decode("utf-8"))
         try:
-            pub = publicacion(json_int['title'], url)
+            pub = publicacion(json_int['title'], url,json_int["container-title"])
             pub.add_authors(json_int['author'])
             pub.add_volumen(json_int)
             pub.issn = json_int["ISSN"]
             pub.anno = str(json_int['published']['date-parts'][0][0])
-            pub.journal = json_int["container-title"]
             issn, impact, Q = journal_issn_search(pub.issn, conn)
             pub.issn = str(issn)
             pub.impact = f'{impact:.3f} ({Q})'

@@ -1,32 +1,36 @@
 import html
 import re
 
+
+def clean(vtitle):
+    if len(vtitle) > 0:
+        vtitle = html.unescape(vtitle.strip())
+        vtitle = re.compile(r'<[^>]+>').sub('', vtitle)
+        return ' '.join(str(vtitle).replace('\n', ' ').replace('\r', '').split())
+    return ''
+
 class author:
     def __init__(self, name, lastname,first):
         self.first = False
-        self.name = str(name).title().replace(" ","")
-        self.lastname = str(lastname).title()
+        self.name = clean(str(name).title().replace(" ",""))
+        self.lastname = clean(str(lastname).title())
         self.first = first
 
 
 class publicacion:
-    def __init__(self, title, doi):
-        def clean(vtitle):
-            if len(vtitle) > 0:
-                vtitle = html.unescape(vtitle)
-                vtitle = re.compile(r'<[^>]+>').sub('', vtitle)
-                return ' '.join(str(vtitle).replace('\n', ' ').replace('\r', '').split())
-            return ''
 
+
+    def __init__(self, title, doi,journal):
         self.authors = []
         self.doi = clean(doi)
         self.title = clean(title)
         self.vol = ''
         self.issn = ''
-        self.journal = ''
+        self.journal = clean(journal)
         self.anno = ''
         self.impact = ''
         self.found = False
+
 
     def add_volumen(self,vjson):
         vol = ""
