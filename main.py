@@ -11,26 +11,29 @@ def excel_to_db(filename, vconn):
         def get_doi_orcid(orcidurl):
             req = urllib.request.Request(orcidurl)
             req.add_header('Accept', 'application/json')
-            with urllib.request.urlopen(req, timeout=15) as f:
-                jsonbruto = f.read()
-                json = loads(jsonbruto.decode("utf-8"))
-                # print(json)
-                listadoi = []
-                if 'activities-summary' in json.keys():
-                    activities = json['activities-summary']
-                    for works in activities['works']['group']:
-                        for summary in works['work-summary']:
-                            if 'external-ids' in summary.keys():
-                                for ids in summary['external-ids']:
-                                    for id in summary['external-ids']['external-id']:
-                                        if (id.get('external-id-type')) is not None:
-                                            if id.get('external-id-type') == 'doi':
-                                                url = id.get('external-id-value')
-                                                if "doi.org" in url:
-                                                    url = url.split(".org/")[1]
-                                                urldoi = 'http://dx.doi.org/' + url
-                                                if urldoi not in listadoi:
-                                                    listadoi.append(urldoi)
+            try:
+                with urllib.request.urlopen(req, timeout=15) as f:
+                    jsonbruto = f.read()
+                    json = loads(jsonbruto.decode("utf-8"))
+                    # print(json)
+                    listadoi = []
+                    if 'activities-summary' in json.keys():
+                        activities = json['activities-summary']
+                        for works in activities['works']['group']:
+                            for summary in works['work-summary']:
+                                if 'external-ids' in summary.keys():
+                                    for ids in summary['external-ids']:
+                                        for id in summary['external-ids']['external-id']:
+                                            if (id.get('external-id-type')) is not None:
+                                                if id.get('external-id-type') == 'doi':
+                                                    url = id.get('external-id-value')
+                                                    if "doi.org" in url:
+                                                        url = url.split(".org/")[1]
+                                                    urldoi = 'http://dx.doi.org/' + url
+                                                    if urldoi not in listadoi:
+                                                        listadoi.append(urldoi)
+            except:
+                print("An exception occurred")
             return listadoi
 
         academicos = pandas.read_excel(filename, sheet_name='Base_Acad')
@@ -278,15 +281,13 @@ def db_2_doc(filename, vconn):
         table = document.add_table(rows=12, cols=2)
         table.style = 'TableGrid'
         hdr_cells = table.rows[0].cells
-        table.cell(0, 0).text = 'Nombre del académico'
+        cabecera =['Nombre del académico','Carácter del vínculo (claustro/núcleo, colaborador o visitante','Título profesional,  institución, país','Grado académico máximo (especificar área disciplinar), institución, año de graduación y país ','Línea(s) de investigación']
+        for c in range(len(cabecera)):
+            table.cell(c, 0).text = cabecera[c]
         table.cell(0, 1).text = row['nombre']
-        table.cell(1, 0).text = 'Carácter del vínculo (claustro/núcleo, colaborador o visitante'
         table.cell(1, 1).text = row['tipo']
-        table.cell(2, 0).text = 'Título profesional,  institución, país'
         table.cell(2, 1).text = row['profesion']
-        table.cell(3, 0).text = 'Grado académico máximo (especificar área disciplinar), institución, año de graduación y país '
         table.cell(3, 1).text = row['grado']
-        table.cell(4, 0).text = 'Línea(s) de investigación'
         table.cell(4, 1).text = row['linea_invest']
 
         table.cell(5, 0).text = 'Tesis de magíster  dirigidas en los últimos 10 años (finalizadas)'
