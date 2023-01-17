@@ -312,16 +312,22 @@ def db_2_doc(filename, vconn):
         document.save('./output/' + row['rut'] + '_' + row['nombre'] + '.docx')
 
 def init_stuff():
+    connl = sqlite.connect(db_academics)
     sql_file = open('master_doi.sql')
     sql_as_string = sql_file.read()
-    conn.executescript(sql_as_string)
+    connl.executescript(sql_as_string)
+    sql_file = open('WOS.sql')
+    sql_as_string = sql_file.read()
+    connl.executescript(sql_as_string)
     if not os.path.exists("./output"):
         os.makedirs("./output")
+    connl.close()
+
 base_file = 'Base_Academicos_demo.xlsx'
 db_academics = './bd_academic.sqlite'
+if not os.path.exists(db_academics):
+    init_stuff()
 conn = sqlite.connect(db_academics)
-init_stuff()
-
 excel_to_db(base_file, conn)
 db_2_doc(base_file, conn)
 
