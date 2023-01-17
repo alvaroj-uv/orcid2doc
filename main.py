@@ -315,5 +315,8 @@ def db_2_doc(filename, vconn):
 base_file = 'Base_Academicos_demo.xlsx'
 db_academics = './bd_academic.sqlite'
 conn = sqlite.connect(db_academics)
+sql_file = open('master_doi.sql')
+sql_as_string = sql_file.read()
+conn.executescript(sql_as_string)
 excel_to_db(base_file, conn)
 db_2_doc(base_file, conn)
