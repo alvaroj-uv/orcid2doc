@@ -17,6 +17,8 @@ def excel_to_db(filename, vconn):
                     json = loads(jsonbruto.decode("utf-8"))
                     # print(json)
                     listadoi = []
+
+                    #faltan validaciones
                     if 'activities-summary' in json.keys():
                         activities = json['activities-summary']
                         for works in activities['works']['group']:
@@ -32,6 +34,8 @@ def excel_to_db(filename, vconn):
                                                     urldoi = 'http://dx.doi.org/' + url
                                                     if urldoi not in listadoi:
                                                         listadoi.append(urldoi)
+            except ValueError:
+                print("An exception occurred")
             except:
                 print("An exception occurred")
             return listadoi
@@ -244,24 +248,25 @@ def get_publicaciones(vconn, id_prof):
     for row in rows:
         url = row['doi']
         try:
-            print("Connecting!")
+            print("Obteniendo desde bd!")
             json = None
             arreglo = get_json(url, vconn)
             if arreglo is not None:
                 json = loads(arreglo.decode("utf-8"))
-                print("Response from db")
+                print("Response from db: "+url)
             else:
                 try:
+                    print("Obteniendo desde web!")
                     req = urllib.request.Request(url)
                     req.add_header('Accept', 'application/json')
                     with urllib.request.urlopen(req, timeout=15) as f:
                         jsonbruto = f.read()
                         json = loads(jsonbruto.decode("utf-8"))
-                    print("Response from web")
+                    print("Response from web: " + url)
                     push_json(url, jsonbruto, vconn)
                     print("Set into db")
                 except Exception as e:
-                    print('Error in web ' + str(e))
+                    print('Error in web '+url +' Error:' +str(e))
                     raise (e)
 
         except Exception as e:
