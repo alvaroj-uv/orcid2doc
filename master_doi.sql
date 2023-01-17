@@ -1,4 +1,4 @@
-create table master_doi
+create table if not exists master_doi
 (
     doi         TEXT,
     autores     TEXT,

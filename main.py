@@ -4,7 +4,7 @@ import sqlite3 as sqlite
 import urllib.request
 from json import loads
 from pubobjects import publicacion
-
+import os
 
 def excel_to_db(filename, vconn):
     def update_orcid(filename):
@@ -311,12 +311,17 @@ def db_2_doc(filename, vconn):
 
         document.save('./output/' + row['rut'] + '_' + row['nombre'] + '.docx')
 
-
+def init_stuff():
+    sql_file = open('master_doi.sql')
+    sql_as_string = sql_file.read()
+    conn.executescript(sql_as_string)
+    if not os.path.exists("./output"):
+        os.makedirs("./output")
 base_file = 'Base_Academicos_demo.xlsx'
 db_academics = './bd_academic.sqlite'
 conn = sqlite.connect(db_academics)
-sql_file = open('master_doi.sql')
-sql_as_string = sql_file.read()
-conn.executescript(sql_as_string)
+init_stuff()
+
 excel_to_db(base_file, conn)
 db_2_doc(base_file, conn)
+
