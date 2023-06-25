@@ -21,6 +21,7 @@ class publicacion:
 
 
     def __init__(self, title, doi,journal):
+        tipopub = set(("article", "book"))
         self.authors = []
         self.doi = clean(doi)
         self.title = clean(title)
@@ -30,6 +31,7 @@ class publicacion:
         self.anno = ''
         self.impact = ''
         self.found = False
+        self.tipo = {}
 
 
     def add_volumen(self,vjson):
@@ -75,7 +77,9 @@ class publicacion:
                 autlista.append(aut)
             elif a.first:
                 autlista.append(aut)
-        return ', '.join(autlista)
+            autlistaclean=[]
+            [autlistaclean.append(x) for x in autlista if x not in autlistaclean]
+        return ', '.join(autlistaclean)
 
     def get_autorcolab(self):
         autlista = []
