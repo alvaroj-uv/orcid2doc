@@ -79,6 +79,7 @@ def excel_to_db(filename, vconn):
 
 
 def add_table_tesis(cell, vconn, id_prof, tipo_tesis):
+    campos = ['anno', 'autor', 'titulo', 'programa', 'institucion']
     def setuptable(table_v):
         table_v.style = 'TableGrid'
         cabecera = ['Año', 'Autor', 'Titulo de tesis', 'Nombre del programa', 'Institución']
@@ -90,31 +91,25 @@ def add_table_tesis(cell, vconn, id_prof, tipo_tesis):
     setuptable(table_t1)
     cur = vconn.cursor()
     cur.execute(
-        "SELECT b.anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Guia' and b.email=?",
+        "SELECT cast(b.anno as Text) anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Guia' and b.email=?",
         [tipo_tesis, id_prof])
     rows = cur.fetchall()
     for row in rows:
         row_cells = table_t1.add_row().cells
-        row_cells[0].text = str(row['anno'])
-        row_cells[1].text = row['autor']
-        row_cells[2].text = row['titulo']
-        row_cells[3].text = row['programa']
-        row_cells[4].text = row['institucion']
+        for r in range(5):
+            row_cells[r].text = row[campos[r]]
 
     cell.add_paragraph('Como co-guía tesis')
     table_t2 = cell.add_table(rows=1, cols=5)
     setuptable(table_t2)
     cur.execute(
-        "SELECT b.anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Co-Guia' and b.email=?",
+        "SELECT cast(b.anno as Text) anno, b.autor, b.titulo, b.programa, b.institucion FROM tesis b where b.tipo =? and b.rol='Co-Guia' and b.email=?",
         [tipo_tesis, id_prof])
     rows = cur.fetchall()
     for row in rows:
         row_cells = table_t2.add_row().cells
-        row_cells[0].text = str(row['anno'])
-        row_cells[1].text = row['autor']
-        row_cells[2].text = row['titulo']
-        row_cells[3].text = row['programa']
-        row_cells[4].text = row['institucion']
+        for r in range(5):
+            row_cells[r].text = row[campos[r]]
     cur.close()
 
 
