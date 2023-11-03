@@ -269,11 +269,11 @@ def get_publicaciones(vconn, id_prof):
 
 
 def db_2_doc(filename, vconn):
-    print('Base actualizada')
+    print('Base actualizandose')
     vconn.row_factory = sqlite.Row
     cur = vconn.cursor()
     cur.execute(
-        "SELECT b.email,ifnull(b.linea_invest,'') as linea_invest,b.rut,b.nombre,b.tipo,b.profesion||';'||ifnull(b.inst_profesion,'Universidad')||';'||ifnull(b.pais_profesion,'Sin Info') as profesion, b.max_grado||';'||ifnull(b.institucion_grado,'')||';'||ifnull(round(b.ano_max_grado,0),'')||';'||ifnull(b.pais_grado,'') as grado FROM base_acad b where b.tipo ='Nucleo'")
+        "SELECT b.email,ifnull(b.linea_invest,'') as linea_invest,b.rut,b.nombre,b.tipo,b.profesion||';'||ifnull(b.inst_profesion,'Universidad')||';'||ifnull(b.pais_profesion,'Sin Info') as profesion, b.max_grado||';'||ifnull(b.institucion_grado,'')||';'||ifnull(round(b.ano_max_grado,0),'')||';'||ifnull(b.pais_grado,'') as grado FROM base_acad b where b.tipo ='Claustro'")
     rows = cur.fetchall()
     for row in rows:
         print('Escribiendo archivo ' + row['nombre'])
@@ -324,7 +324,7 @@ def init_stuff():
         os.makedirs("./output")
     connl.close()
 
-base_file = 'Base_Academicos_demo.xlsx'
+base_file = './temp/Base_Academicos_Mag.xlsx'
 db_academics = './bd_academic.sqlite'
 if not os.path.exists(db_academics):
     init_stuff()
