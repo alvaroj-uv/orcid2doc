@@ -220,8 +220,8 @@ def get_publicaciones(vconn, id_prof):
             print(str(e) + " - Error!")
             raise (e)
         lista_autores=pub.get_autorlist(True)
-        vconn.execute('insert into master_doi (json,doi,autores, anno, titulo, revista, ref_revista, isbn, factor) values (?,?,?,?,?,?,?,?,?)',
-                      [vjson, vurl,lista_autores,pub.anno,pub.title,pub.journal,pub.vol,pub.issn,pub.impact])
+        vconn.execute('insert into master_doi (json,doi,autores, anno, titulo, revista, ref_revista, isbn, factor,autor_sec) values (?,?,?,?,?,?,?,?,?,?)',
+                      [vjson, vurl,lista_autores,pub.anno,pub.title,pub.journal,pub.vol,pub.issn,pub.impact,pub.get_autorcolab()])
         vconn.commit()
     def journal_issn_search(journalissn, vconn):
         if len(journalissn) == 1:
@@ -273,7 +273,7 @@ def db_2_doc(filename, vconn):
     vconn.row_factory = sqlite.Row
     cur = vconn.cursor()
     cur.execute(
-        "SELECT b.email,ifnull(b.linea_invest,'') as linea_invest,b.rut,b.nombre,b.tipo,b.profesion||';'||ifnull(b.inst_profesion,'Universidad')||';'||ifnull(b.pais_profesion,'Sin Info') as profesion, b.max_grado||';'||ifnull(b.institucion_grado,'')||';'||ifnull(round(b.ano_max_grado,0),'')||';'||ifnull(b.pais_grado,'') as grado FROM base_acad b where b.tipo ='Claustro'")
+        "SELECT b.email,ifnull(b.linea_invest,'') as linea_invest,b.rut,b.nombre,b.tipo,b.profesion||';'||ifnull(b.inst_profesion,'Universidad')||';'||ifnull(b.pais_profesion,'Sin Info') as profesion, b.max_grado||';'||ifnull(b.institucion_grado,'')||';'||ifnull(round(b.ano_max_grado,0),'')||';'||ifnull(b.pais_grado,'') as grado FROM base_acad b")
     rows = cur.fetchall()
     for row in rows:
         print('Escribiendo archivo ' + row['nombre'])
@@ -324,7 +324,7 @@ def init_stuff():
         os.makedirs("./output")
     connl.close()
 
-base_file = './temp/Base_Academicos_Mag.xlsx'
+base_file = './Base_Academicos_demo.xlsx'
 db_academics = './bd_academic.sqlite'
 if not os.path.exists(db_academics):
     init_stuff()
