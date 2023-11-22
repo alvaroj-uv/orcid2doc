@@ -220,8 +220,8 @@ def get_publicaciones(vconn, id_prof):
             print(str(e) + " - Error!")
             raise (e)
         lista_autores=pub.get_autorlist(True)
-        vconn.execute('insert into master_doi (json,doi,autores, anno, titulo, revista, ref_revista, isbn, factor,autor_sec) values (?,?,?,?,?,?,?,?,?,?)',
-                      [vjson, vurl,lista_autores,pub.anno,pub.title,pub.journal,pub.vol,pub.issn,pub.impact,pub.get_autorcolab()])
+        vconn.execute('insert into master_doi (json,doi,autores, anno, titulo, revista, ref_revista, isbn, factor,autor_sec,autor_prin) values (?,?,?,?,?,?,?,?,?,?,?)',
+                      [vjson, vurl,lista_autores,pub.anno,pub.title,pub.journal,pub.vol,pub.issn,pub.impact,pub.get_autorcolab(),pub.get_autorlist(False)])
         vconn.commit()
     def journal_issn_search(journalissn, vconn):
         if len(journalissn) == 1:
@@ -310,7 +310,7 @@ def db_2_doc(filename, vconn):
                    0).text = 'Listado de consultorías y/o  asistencias técnicas, en calidad de responsable, en los últimos 10 años'
         add_table_consultorias(table.cell(10, 1))
 
-        document.save('./output/' + row['rut'] + '_' + row['nombre'] + '.docx')
+        # document.save('./output/' + row['rut'] + '_' + row['nombre'] + '.docx')
 
 def init_stuff():
     connl = sqlite.connect(db_academics)
